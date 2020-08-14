@@ -3,7 +3,8 @@ const CopyPlugin = require('copy-webpack-plugin');
 const {CleanWebpackPlugin} = require('clean-webpack-plugin');
 
 const entries = {
-    oit: "./src/oit/index.js"
+    'oit': "./src/oit/index.js",
+    'ammo-ragdoll': "./src/ammo-ragdoll/index.js"
 };
 
 const plugins = [];
@@ -28,5 +29,8 @@ module.exports = {
     output: {
         path: path.join(__dirname, "build"),
         filename: "[name]/index.js"
+    },
+    node: {
+        fs: 'empty'
     }
 };
