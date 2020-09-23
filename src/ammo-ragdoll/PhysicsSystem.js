@@ -64,6 +64,8 @@ export default class PhysicsSystem {
 			capsule.setAngularFactor(0, 1, 0);
 			this.bodies.capsule = capsule;
 		}
+
+		this.addRagdoll();
 	}
 
 	addDynamicBody({shape, transform, mass = 1, friction = 0.6}) {
@@ -111,7 +113,7 @@ export default class PhysicsSystem {
 			if (body.type === 'player') {
 				const airborne = this.capsuleSpringForce(body);
 
-				if(!airborne) {
+				if (!airborne) {
 					body.activate();
 					if (this.controls.keys.right) {
 						body.setLinearVelocity(new Ammo.btVector3(10, 0, 0));
@@ -120,7 +122,7 @@ export default class PhysicsSystem {
 					} else if (this.controls.keys.up) {
 						body.applyCentralForce(new Ammo.btVector3(0, 500, 0));
 					} else {
-						//body.setLinearVelocity(new Ammo.btVector3(0, 0, 0));
+						body.setLinearVelocity(new Ammo.btVector3(0, body.getLinearVelocity().y(), 0));
 					}
 				}
 
@@ -186,7 +188,7 @@ export default class PhysicsSystem {
 	processCollisionForces() {
 		const num = this.dispatcher.getNumManifolds();
 
-		for(let i = 0; i < num; i++) {
+		for (let i = 0; i < num; i++) {
 			const manifold = this.dispatcher.getManifoldByIndexInternal(i);
 
 			const num_contacts = manifold.getNumContacts();
@@ -202,15 +204,93 @@ export default class PhysicsSystem {
 
 				const playerBodyID = this.bodies.capsule.a;
 
-				if(body0.a === playerBodyID || body1.a === playerBodyID) {
+				if (body0.a === playerBodyID || body1.a === playerBodyID) {
 					const impulse = point.getAppliedImpulse();
 
-					if(impulse > 10) {
+					if (impulse > 10) {
 						console.log('Player collision impulse is ' + impulse);
 					}
 				}
 			}
 		}
+	}
+
+	addRagdoll() {
+		const scale = 1;
+
+		const shapes = [
+			new Ammo.btCapsuleShape(scale * 0.15, scale * 0.20),
+			new Ammo.btCapsuleShape(scale * 0.15, scale * 0.28),
+			new Ammo.btCapsuleShape(scale * 0.10, scale * 0.05)
+		];
+
+		const bodies = [];
+
+		const transform = new Ammo.btTransform();
+		transform.setIdentity();
+		transform.setOrigin(Ammo.btVector3(0, scale, 0));
+		bodies[0] = this.addDynamicBody({
+			shape: shapes[0],
+			transform,
+			mass: 1
+		});
+
+		transform.setIdentity();
+		transform.setOrigin(Ammo.btVector3(0, scale * 1.2, 0));
+		bodies[1] = this.addDynamicBody({
+			shape: shapes[1],
+			transform,
+			mass: 1
+		});
+
+		transform.setIdentity();
+		transform.setOrigin(Ammo.btVector3(0, scale * 1.6, 0));
+		bodies[2] = this.addDynamicBody({
+			shape: shapes[2],
+			transform,
+			mass: 1
+		});
+
+		for (let i = 0; i < bodies.length; ++i) {
+			bodies[i].setDamping(0.05, 0.85);
+			//bodies[i].setDeactivationTime(0.8);
+			bodies[i].setSleepingThresholds(1.6, 2.5);
+		}
+
+		this.bodies.ragdollPelvis = bodies[0];
+		this.bodies.ragdollSpine = bodies[1];
+		this.bodies.ragdollHead = bodies[2];
+
+		this.addJoint({
+			bodyA: this.bodies.ragdollPelvis,
+			bodyB: this.bodies.ragdollSpine,
+			originA: {x: 0, y: 0.3 * 10, z: 0},
+			originB: {x: 0, y: -0.14 * 10, z: 0},
+			limitsMin: {x: -Math.PI * 0.3, y: -Number.EPSILON, z: -Math.PI * 0.3},
+			limitsMax: {x: Math.PI * 0.5, y: Number.EPSILON, z: Math.PI * 0.3}
+		});
+
+		console.log(shapes);
+	}
+
+	addJoint({bodyA, bodyB, originA, originB, limitsMin, limitsMax}) {
+		const localA = new Ammo.btTransform();
+		const localB = new Ammo.btTransform();
+
+		localA.setIdentity();
+		localB.setIdentity();
+
+		localA.setOrigin(new Ammo.btVector3(originA.x, originA.y, originA.z));
+		localB.setOrigin(new Ammo.btVector3(originB.x, originB.y, originB.z));
+
+		const joint = new Ammo.btGeneric6DofConstraint(bodyA, bodyB, localA, localB, true);
+
+		joint.setAngularLowerLimit(Ammo.btVector3(limitsMin.x, limitsMin.y, limitsMin.z));
+		joint.setAngularLowerLimit(Ammo.btVector3(limitsMax.x, limitsMax.y, limitsMax.z));
+
+		this.dynamicsWorld.addConstraint(joint, true);
+
+		return joint;
 	}
 }
 

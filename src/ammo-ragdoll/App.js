@@ -44,6 +44,7 @@ export default class App {
 	setupScene() {
 		this.addGround();
 		this.addCube();
+		this.addRagdoll();
 	}
 
 	addGround() {
@@ -76,6 +77,24 @@ export default class App {
 
 		this.physicsSystem.bodies.box.object = mesh;
 		this.physicsSystem.bodies.capsule.object = capsule;
+	}
+
+	addRagdoll() {
+		const material = new THREE.MeshStandardMaterial({
+			color: '#2b2b2b',
+			roughness: 0.5
+		});
+		const geometry = new THREE.BoxBufferGeometry(0.2, 0.2, 0.2);
+		const mesh = new THREE.Mesh(geometry, material);
+
+		const names = ['ragdollPelvis', 'ragdollSpine', 'ragdollHead'];
+
+		for(let i = 0; i < names.length; i++) {
+			const clone = mesh.clone();
+			this.scene.add(clone);
+			console.log(this.physicsSystem.bodies, names[i])
+			this.physicsSystem.bodies[names[i]].object = clone;
+		}
 	}
 
 	animate() {
